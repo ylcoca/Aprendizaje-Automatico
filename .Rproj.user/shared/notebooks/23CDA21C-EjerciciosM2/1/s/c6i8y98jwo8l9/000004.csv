@@ -1,0 +1,10 @@
+"0","transacciones <- data.frame(
+  monto = sample(seq(1,monto_max,1), 1000),
+  tipo = sample(c(""venta"", ""devolucion""),1000,1),
+  cliente_id = sample(clientes$id, 1000, replace = FALSE),
+  tiendas = sample(tiendas, 1000, replace = TRUE)
+)
+"
+"2","Error in sample.int(length(x), size, replace, prob) : 
+  cannot take a sample larger than the population when 'replace = FALSE'
+"

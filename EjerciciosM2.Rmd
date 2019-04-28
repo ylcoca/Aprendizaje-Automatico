@@ -1,0 +1,322 @@
+---
+title: "Ejercicios ETL"
+author: "Yader Coca"
+date: "25 de abril de 2019"
+output: html_document
+---
+# 1- Modificar el setup del .Rmd para setear el archivo al proyecto
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
+
+# 2- Levantar datos y guardar
+
+Acceder a los datos de Vino (blanco o rojo) del repositorio de machine learning de UCI (https://archive.ics.uci.edu/ml/datasets/Wine+Quality) y guardar en el formato más eficiente, tomando en cuenta el tamaño y la velocidad de carga. Argumentar.
+
+#Paquetes y Librerias
+```{r librerias, echo=FALSE}
+#Instalar paquetes 
+paquetes = c('foreign', 'feather', 'data.table', 'microbenchmark', 'purrr', 'tidyr', 'XML', 'xml2', 'dplyr', 'jsonlite', 'rjson', 'httr', 'RJSONIO', 'stringi', 'here')
+
+instalados <- paquetes %in% installed.packages()
+if (length(paquetes[!instalados]) > 0) {
+  install.packages(paquetes[!instalados], repos = 'http://cran.us.r-project.org')
+}
+lapply(paquetes, require, character.only = TRUE)
+
+# Instalar un paquete de github
+ongithub <- c('xmltools')
+extension <- c('dantonnoriega')
+pack <- cbind(ongithub, extension,  paste0(extension, '/', ongithub))
+oghinstalado <- pack[,1] %in% installed.packages()
+#if (length(ongithub[!oghinstalado]) > 0) {
+#  devtools::install_github(pack[!oghinstalado, 3])
+#}
+lapply(ongithub, require, character.only = TRUE)
+```
+
+Levantar datos y guardar
+
+```{r archivos planos 1, message=FALSE, warning=FALSE}
+redWineDf <- read.csv2('Dataset/winequality-red.csv')
+head(redWineDf)
+str(redWineDf)
+```
+
+Distintos formatos para comparativa de tiempos y tamaños 
+```{r comparación de funciones para leer datos, message=FALSE, warning=FALSE}
+# Definir path
+path_csv <- 'Datasets/df.csv'
+path_feather <- 'Datasets/df.feather'
+path_rdata <- 'Datasets/df.RData'
+path_rds <- 'Datasets/df.rds'
+
+# Guardo Objs
+write.csv(redWineDf, file = path_csv, row.names = F)
+write_feather(redWineDf, path_feather)
+save(df, file = path_rdata)
+saveRDS(df, path_rds)
+
+# Tamaño de los objetos
+
+files <- c('Datasets/df.csv', 'Datasets/df.feather', 'Datasets/df.RData', 'Datasets/df.rds')
+info <- file.info(files)
+info$size_mb <- info$size/(1024 * 1024)
+print(subset(info, select = c("size_mb")))
+```
+
+Benchmark de los tiempos de carga. Dado los resultados rds tiene los menores tiempos y los menores tamaños
+```{r comparar los tiempos de carga, message=FALSE, warning=FALSE}
+benchmark <- microbenchmark(readCSV = utils::read.csv(path_csv),
+               readrCSV = readr::read_csv(path_csv, progress = F),
+               fread = data.table::fread(path_csv, showProgress = F),
+               loadRdata = base::load(path_rdata),
+               readRds = base::readRDS(path_rds),
+               readFeather = feather::read_feather(path_feather), times = 10)
+print(benchmark, signif = 2)
+```
+
+
+* Cargar el shape de códigos postales de Montevideo.
+
+```{r lectura de shapes espaciales}
+  library(rgdal)
+  sp_df <- readOGR(dsn = "cpost")
+  print(sp_df)
+```
+
+* ¿Qué clase de objeto es?
+    ```{r}
+      typeof(sp_df);
+    ```
+* ¿Qué dimensión tiene?
+    ```{r}
+      length(sp_df);
+    ```
+* Grafique.
+    ```{r}
+      plot(sp_df, col='blue', bg='yellow')
+      box()
+      for(i in 1:4) axis(i)
+    ```
+
+* Muestre la estructura de la tabla de datos. ¿Considera que alguna variable tiene una clase o tipo de datos errónea
+
+    ```{r}
+      head(sp_df@data)
+      sapply(sp_df@data, class)
+      str(sp_df@data)
+      df <- as.data.frame(sp_df@data)
+      
+      # site_code, poblacion, cod postal son Factor, podrían ser int, creo que hay suficiente espacio en ese tipo de datos para soportarlo.
+    ```
+   
+    
+* ¿Todos los sitios (identificados por la variable site_code) tienen un único valor de código postal?
+    
+    
+```{r}
+head(sp_df@data)
+#which
+#length(unique(sp_df$cod_postal))
+#length(unique(sp_df$site_code))     
+#caracter <- unique(sp_df$site_code, incomparables = FALSE, fromLast = FALSE,
+#        nmax = 1)
+
+paste("Hay ", length(unique(sp_df$cod_postal)) - length(unique(sp_df$site_code)), " que tienen valor unico")
+
+    ```
+
+# 3- Crear un dataframe
+
+```{r}
+
+poblaciones_df <- data.frame(
+  pais = c('Argentina ', 'Argentina ', 'Uruguay ', 'Uruguay ','Argentina ', 'Argentina ', 'Uruguay ', 'Uruguay '),
+  Anio = c(1980,1980,1980,1980,1981,1981,1981,1981),
+  tipo = c('total', 'urbana', 'total', 'urbana'),
+  poblacion = c(27000000,23000000,3000000,200000,27000100,23000030,3000001,200000)
+)
+
+poblacion_ordenado <- tidyr::spread(data = poblaciones_df, key = tipo, value = poblacion)
+```
+
+## 3.1 - Crear un id
+La función *seq* permite general un vector secuencial de acuerdo a determinada regla. Por ejemplo es posible crear un id:
+```{r}
+id <- seq(1, 1000, 1)
+```
+
+* Explique cada uno de los argumentos de la función de arriba.
+
+  la funcion seq puede contar hasta con 3 argumentos seq(from, to, length.out= ) 
+  *from: valor inicial de la secuencia
+  *to:   valor final de la secuencia
+  *by:   incremento en la secuencia
+  
+* ¿Qué tipo de objetido es id en R? ¿Cuál es el largo del mismo? ¿Cuál es la clase? ¿Cuál es el tipo?
+   
+  Tipo de objeto   
+  R:Vector, cadenas unidimensionales (es decir una sola columna o fila) de un tipo único de valores (numéricos, caracteres, etc.)
+```{r}
+mode(id)
+```  
+
+  Tipo de clase
+  
+```{r}
+class(id)
+```  
+  
+  Largo
+
+```{r}
+length(id)
+```  
+
+Tipo de de dato
+
+```{r}
+typeof(id)
+``` 
+
+* ¿Cuál es la diferencia entre esta clase y tipo?
+
+  Tipo -> mutuamente excluyente de acuerdo con su estructura basica. Modos atomicos son numeric,complex, character y logical.
+  Clase -> Propiedad asignada a un objeto que determina como funcionan las funciones genericas con el. No es mutuamente excluyente. SI un objeto no tiene asignada una clase especifica entonces es la misma que su modo.
+
+* Proponga un id con una secuencia diferente.
+
+```{r}
+id2 <- seq(10, 100, 2)
+id2
+```
+
+
+## 3.2 - Crear otros vectores.
+* Cree un vector con dos valores para definir el género de una persona (femenino y masculino).
+
+```{r}
+vGenero <- seq(1, 2, 1)
+vGenero
+```
+
+* Cree un vector secuencial para definir una variable edad que comience en 18, termine en 60 y vaya de a un año.
+
+```{r}
+edad <- seq(18, 60, 1)
+edad
+```
+* Cree un vector caracter con los sitios (únicos) de los códigos postales. Recuerde que la función unique devuelve valores únicos sin duplicados.
+
+```{r}
+caracter <- unique(sp_df$site_code, incomparables = FALSE)
+caracter
+```
+* Cree un vector de tiendas con los nombres como letras desde A hasta J, hágalos manual y con la función LETTERS
+
+```{r}
+tiendas <- LETTERS[1:10]
+tiendas
+```
+
+
+## 3.3 - Crear muestras de datos
+La función *sample* "takes a sample of the specified size from the elements of x using either with or without replacement". 
+
+Cree vectores de largo 1000 a través de muestra de los anteriores vectores (género, edad, sitios, tiendas), de 1000 con reemplazo.
+```{r}
+
+v1 <- sample(vGenero, 1000, replace = TRUE)
+v1
+v2 <- sample(edad, 1000, replace = TRUE)
+v2
+v3 <- sample(sp_df$site_code, 1000, replace = TRUE)
+v3
+v4 <- sample(tiendas, 1000, replace = TRUE)
+v4
+```
+
+## 3.4 - Generar el dataframe de los clientes
+Cree un dataframe de 1000 filas y cuatro columnas. Donde:
+* El nombre sea "clientes". 
+* Las 4 columnas incluran: id, sexo, edad y barrios
+* No genere los strings como factores
+```{r}
+
+id <- c(1,2,3,4)
+sexo <- c('M', 'M', 'M','F')
+edad <- c('30', '63', '43','32')
+barrios<- c('Centro', 'Pocitos', 'Malvin','Punta Gorda')
+clientes <- data.frame(id,sexo,edad ,barrios, nrow = 1000 ,stringsAsFactors = FALSE)
+x <- c('id', 'sexo', 'edad','barrios')
+colnames(clientes) <- x
+str(clientes)
+```
+
+# 4- Fechas
+Explicar el siguiente código, incluyendo los argumentos de las funciones.
+```{r}
+#
+# ?
+transaction_count <- 100000 #simple variable asignation
+# ?
+generate_dates<- function(N, inicio="2017-01-01", fin="2017-12-31") { # N es la variable de recuento de transacciones (se debe pasar), inicio es la fecha de inicio predeterminada como 2017-01-01, fin es la fecha de finalización predeterminada como 2017-12-31
+  inicio <- as.POSIXct(as.Date(inicio), format = "%Y-%m-%d") #Date time función constructora 'POSIXct' que forma la fecha de entrada (inicio) como año, mes, día
+  fin <- as.POSIXct(as.Date(fin), format = "%Y-%m-%d") #Fecha hora función constructora 'POSIXct' formateando la fecha de entrada (fin) como año, mes, día. como fecha es para evitar la coacción analizar los datos resultantes hasta la fecha en este caso.
+  dt <- as.numeric(difftime(fin,inicio,unit="sec")) # difftime -> Creación de intervalos de tiempo, impresión, y algo de aritmética. Sustracción fin-inicio dando la respuesta en segundos.
+  ev <- sort(runif(N, 0, dt)) #Sort -> (u orden) un vector o factor (parcialmente) en orden ascendente o descendente, predeterminado para ser un orden decresante.Runif -> Genera composiciones aleatorias con una distribución uniforme en (rcomp) simplex.minimun 0 max beign dt y N el número de simulación de conjuntos de datos.
+  rt <- inicio + ev #Aquí estamos agregando la diferencia ordenada.
+  rt <- as.Date(rt,format = "%Y-%m-%d") #Por otra parte, convertimos la fecha en formato año-mes-día y es el resultado final retornable.
+}
+# ?
+dates <- data.frame(   #Creación de data frame con el resultado de generar_fechas con 10k elementos desde 2017-01-01 hasta 2017-12-31
+  datetime = generate_dates(transaction_count)
+)
+```
+
+
+# 5 - Merge y tidy
+Si usted creó el dataframes "clientes" y el vector "tiendas" debería de poder crear el siguiente dataframe 'transacciones' (si tiene alguna diferencia de nombres modifíquelo en este chunk)
+```{r}
+
+monto_max <- 100000
+transacciones <- data.frame(
+  monto = sample(seq(1,monto_max,1), 1000),
+  tipo = sample(c("venta", "devolucion"),1000,1),
+  cliente_id = sample(clientes$id, 1000, replace = TRUE),
+  tiendas = sample(tiendas, 1000, replace = TRUE)
+)
+```
+
+## 5.1 - Tidy
+
+Genere un nuevo dataframe separando el tipo de transacción en dos columnas.
+Impute a los NA el valor cero.
+```{r}
+
+new_df = spread(transacciones, tipo, cliente_id)
+new_df[is.na(new_df)]=0
+new_df
+```
+
+
+## 5.2 - Merge
+
+* Una el dataframe de clientes con el de transacciones. CREANDO UN NUEVO DATAFRAME
+* Revise las funciones rbind, cbind, dplyr::bind_cols, dplyr::bind_rows
+* ¿Alguna de las anteriores funciones permite agregar una columna? Agregue una columna de fechas AL NUEVO DATAFRAME a través de una muestra del dataframe "dates".
+
+```{r}
+
+mergedDf <- merge(clientes, transacciones) #cbind también podría haber sido utilizado, mismo resultado ;) 
+#dplyr::bind_cols permite agregar columnas entre datasets o dataframes 
+
+bind_cols(mergedDf, sample_n(dates, 4000)) #usando bind_cols para agregar columnas y sample_n para tomar una muestra numerada de 4000 elementos
+
+#Nota: Aca hay una cosa curiosa , a pesar de que para hacer el bind 'mergeDF' y 'dates' TIENEN que tener el mismo tamaño(1000 debiera ser para ambos) cuando corre el knit me dice que(Error: Argument 2 must be length 4000, not 1000) ,sin embargo si lo corro directamente aparece el error contrario (Error: Argument 2 must be length 1000, not 4000) 
+
+```
+

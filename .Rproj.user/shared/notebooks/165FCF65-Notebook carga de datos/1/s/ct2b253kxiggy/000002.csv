@@ -1,0 +1,8 @@
+"0","```r
+json_file <- \"https://data.muni.org/api/views/da3g-dkms/rows.json?accessType=DOWNLOAD\"
+rawp <- jsonlite::fromJSON(json_file)
+perros <- rawp[['data']]
+colnames(perros) <- rawp$meta$view$columns$name
+class(perros)
+head(perros)
+```"

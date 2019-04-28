@@ -1,0 +1,667 @@
+---
+title: "Manejo de Datos con R"
+author: "Joselina"
+date: "7 de abril de 2019"
+output: html_document
+---
+
+# 1 - Antes de empezar: cosas que hay que saber
+
+### Setup rmarkdown
+Código para setup el ambiente
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
+La siguiente opción de knitr nos permite fijar el directorio del rmarkdown al Rproject y no a la carpeta del *.Rmd* : 
+*knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())*
+
+### Paquetes
+Los paquetes que deberían tener instalados hoy:
+* magrittr
+* tidyr
+* tidyr
+* tidyselect
+* tidytext
+* tidyverse
+* plyr
+* dplyr
+* reshape2
+* zoo
+* stringr
+* car
+* MASS
+* rcompanion
+* editrules
+* lubridate
+* stringr
+* stringi
+* VIM
+* caret
+
+### Valores especiales en R
+* NA: valor faltante. La función *is,na()* puede ser utilizada para detectar NA.
+* NULL: como el conjunto vacío en matemáticas. Es especial porque no tiene *class()* y tiene *length()* cero
+* Inf: número infinito, aplica sólo a los vectores numéricos. 
+* NaN: no es un número. NaN técnicamente *is.numeric* generalmente resulta de operaciones como 0/0, Inf/Inf, etc. La función *is.nan()* puede usarse para detectar NaNs.
+
+```{r Ejercicio predecirel resultado}
+exp(-Inf)
+NA == NA
+NA == NULL
+NULL == NULL
+NA & FALSE
+```
+
+
+### Crear un dataframe
+
+```{r}
+data.frame(
+  anio = c(2000, 2001, 2002,2003,2004),
+  roa = c('16009500/2202902', '16130290/1887926', '22689382/1437912', '25152363/2112528', '25107346/1899890'),
+	pasivo = c(4438562, 4361452, 4960117, 5981713, 659444)
+	)
+# asignarle un nombre y que quede guardado en la memora como un objeto
+df1 <- balance_df <- data.frame(
+  anio = c(2000, 2001, 2002,2003,2004),
+  roa = c('16009500/2202902', '16130290/1887926', '22689382/1437912', '25152363/2112528', '25107346/1899890'),
+	pasivo = c(4438562, 4361452, 4960117, 5981713, 659444)
+	)
+df1
+```
+
+### Los scripts reproducibles.
+Generalmente la idea es tener scripts reproducibles para correr un script usamos la función source:
+source("ruta/nombre.R")
+
+# 2 - Operaciones
+
+## El operador "pipe"
+
+Forma convencional:
+
+finally_last_step(
+  and_then_third(
+    then_second(
+      do_first(data)
+    )
+  )
+)
+
+Con el operador "pipe"
+data %>% 
+  do_first() %>% 
+  then_second() %>% 
+  and_then_third() %>% 
+  finally_last_step()
+
+¿De qué paquete proviene?
+
+```{r magrittr}
+library(magrittr)
+```
+
+¿Qué paquetes lo utilizan?
+
+```{r paquetes pipe}
+library(tidyr)
+library(tidyselect)
+library(tidytext)
+library(tidyverse)
+library(plyr)
+library(dplyr)
+# entre otros
+```
+
+```{r ejemplo "pipe"}
+
+# Opción "pipeline"
+data(iris) 
+iris[, 1:4] %>% # select first 4 columns 
+  head() %>% # show 1st 6 rows of 4 columns 
+  rowSums()     # row sums of 6 rows of 4 cols
+
+# Opción convencional
+data(iris) 
+rowSums(head(iris[,1:4]))
+```
+
+## Mínimas funciones para conocer los datos
+
+```{r básicas para conocer los datos}
+# ¿qué hacen las siguientes funciones?
+str(iris)
+head(iris)
+tail(iris)
+summary(iris)
+hist(iris$Sepal.Length)
+```
+
+```{r}
+library(tidyr)
+
+iris <- as_tibble(iris)
+glimpse(iris)
+head(iris)
+
+```
+# 3 - De datos crudos a datos tecnicamente correctos
+
+## Conversiones de tipos de datos
+
+### Tipos de datos
+*as.numeric()*
+*as.logical()*
+*as.integer*
+*as.character*
+*as.factor*
+*as.ordered*
+
+```{r}
+as.numeric(c("7", "7*", "7.0", "7,0"))
+class(c("abc", "def"))
+class(1:10)
+class(c(pi, exp(1)))
+class(factor(c("abc", "def")))
+
+typeof(c("abc", "def"))
+typeof(1:10)
+typeof(c(pi, exp(1))) 
+typeof(factor(c("abc", "def")))
+```
+
+El término doble refiere a la doble precisión, que es una forma estandar de los lenguajes de computación de bajo nivel, como es C, es la forma de aproximarse a los números reales.
+También el tipo de la clase *factor* es numérico
+
+### 3.1 - Factores
+
+```{r recodificar factores}
+genero <- c(2, 1, 1, 2, 0, 1, 1)
+recode <- c(hombre = 1, mujer = 2)
+(genero <- factor(genero, levels = recode, labels = names(recode)))
+```
+
+Los niveles de los factores no tienen un orden natural. En modelos de regresión multivariados puede ser beneficioso fijar un nivel de referencia.
+```{r}
+genero <- relevel(genero, ref = "mujer")
+``` 
+
+Los niveles pueden ser también reordenados
+```{r}
+edad <- c(27, 52, 65, 34, 89, 45, 68)
+(genero <- reorder(genero, edad))
+```
+
+### 3.2 - Fechas
+Para que R lea ciertos strings como fechas debemos utilizar la función correcta para leer el valor como fecha.
+```{r leer fechas}
+2003-02-27
+'2003-02-07'
+str('2003-02-07')
+str(as.Date('2003-02-07'))
+```
+Se pueden realizar operaciones con fechas a través de los operadores de mayor, menor e igual (entre otros)
+```{r operaciones con fechas}
+as.Date('2003-02-07') > as.Date('2002-02-07')
+as.Date('2003-02-07') - as.Date('2002-02-07')
+as.Date('2003-02-07') +365
+```
+
+fechas y hora del sistema (nuestro computador)
+
+```{r fechas sistema}
+Sys.timezone()
+
+Sys.Date()
+
+Sys.time()
+Sys.getlocale("LC_TIME")
+
+# con el paquete lubridate
+lubridate::now()
+```
+
+```{r convertir a fechas}
+#### convertir string a fechas
+x <- c('2003-02-07', '2002-02-07', '2004-02-07' )
+fechasX <- as.Date(x) # notar que el formato es YYYY-MM-DD
+
+y <- c('07-02-2000', '07-02-2001', '07-02-2002' ) # aqui tenemos otro formato
+fechasY <- as.Date(x, format = '%m/%d%Y')
+
+## Códigos de formateo de fechas
+# %d -> dia
+# %m -> Mes numérico
+# %b -> Mes abreviado
+# %B -> Mes completo
+# %y -> año a dos dígitos
+# %Y -> año a 4 dígitos
+```
+
+```{r el paquete lubridate}
+## con el paquete lubridate
+library(lubridate)
+ymd(x)
+mdy(y)
+```
+
+```{r distintos formatos de fechas}
+## Un csv con distintos formatos de fecgas
+fechas <- read.csv2('../Datasets/fechas.csv') # ¿qué tipo de objeto es?
+fechas # como un print de todo el dataframe
+fechas[1,1]
+typeof(fechas[1,1])
+
+primercolumna <- as.Date(fechas$month_day_year, format = '%m/%d/%y')  
+typeof(primercolumna)
+class(primercolumna)
+cuarta <- as.Date(fechas$year_month_day)
+cuarta
+class(cuarta)
+months(cuarta)
+weekdays(cuarta)
+```
+
+Formatos de fecha:
+* Date: sólo fechas (no incluye la hora), lo almacena como el número de días transcurridos
+* POSIXt: además de la fecha incluye hora y uso horario
+* POSIXct: almacena la cifra como un número entero
+* POSIXlt: descompone la lista en sus elementos
+* POSIXlt: lista
+
+```{r la función transform}
+fechas_procesado <- transform(fechas, month_day_year = as.Date(fechas$month_day_year, format = '%m/%d/%Y'))
+# ¿qué hicimos?
+str(fechas)
+str(fechas_procesado)
+# de qué paquete es esta función
+?transform
+```
+
+Al reconocer R que es una fecha podemos realizar interesantes creaciones de variables que pueden ayudar a descubrir patrones en los datos
+```{r dias de la semana}
+fechas_procesado$dia <- weekdays(fechas_procesado$month_day_year)
+```
+
+¿qué tipos de problemas podrían tener patrones en los días de la semana?
+
+```{r errores por diferencia de formato de fechas local}
+# fecha y tiempo
+fechas_procesado$date_time <- as.character(fechas_procesado$date_time)
+str(fechas)
+str(fechas_procesado)
+date_time1 <- as.POSIXct(fechas_procesado$date_time, format = "%a %b %d %H:%M:%S %Y")
+date_time1
+
+date_time2 <- as.POSIXlt(fechas_procesado$date_time,                 
+                           format = "%a %b %d %H:%M:%S %Y")
+date_time2
+# ¿te dio NA? ¿qué era NA?
+# Qué hacer en este caso si nos da NA:
+# save your current locale#
+Sys.getlocale("LC_TIME") #"Spanish_Uruguay.1252"
+loc <- Sys.getlocale("LC_TIME")
+
+# Set correct locale for the strings to be parsed
+# (in this particular case: English)
+# so that weekdays (e.g "Thu") and abbreviated month (e.g "Nov") are recognized
+Sys.setlocale("LC_TIME", "en_GB.UTF-8")
+# or
+Sys.setlocale("LC_TIME", "C") 
+
+# Probemos ahora
+as.POSIXlt(fechas_procesado$date_time, format = "%a %b %d %H:%M:%S %Y")
+
+fechas_procesado$date_time2 <- as.POSIXlt(fechas_procesado$date_time, format = "%a %b %d %H:%M:%S %Y")
+fechas_procesado$date_time2
+# Then set back to your old locale
+Sys.setlocale("LC_TIME", loc) 
+```
+
+## 3.3 - Manipulación de caracteres
+
+Normalización de strings:
+El objetivo es transformar la variedad del/de los strings en un nás pequeño conjunto de strings que sean más fácilmente procesables.
+R tiene extensas funcionalidades para manipular string que vienen de dos operaciones básicas: 1) *encontrar* un patrón en un string y 2) *reemplazar* un patrón por otro.
+
+```{r remover espacios en blanco extras}
+library(stringr)
+str_trim(" hello world ")
+str_trim(" hello world ", side = "left")
+str_trim(" hello world ", side = "right")
+```
+
+A la inversa pueden agregarse patrones de strings, como espacios u otros caracteres:
+
+```{r agregar patrones}
+str_pad(112, width = 6, side = "left", pad = 0)
+```
+
+```{r}
+toupper("Hello world")
+tolower("Hello World")
+```
+
+
+# 6 - DE datos técnicamente correctos a datos consistentes
+
+### Valores faltantes
+
+```{r}
+edad <- c(23, 56, NA)
+mean(edad)
+mean(edad, na.rm = TRUE)
+complete.cases(edad)
+na.omit(edad)
+
+# otras funciones
+table(is.na(edad))
+df <- data.frame(edad, edad)
+df
+colSums(is.na(df))
+which(is.na(df))
+```
+
+### Outliers
+```{r}
+x <- c(1:10, 20, 30)
+boxplot.stats(x)$out
+boxplot(x)
+```
+
+El método de Hiridoglou and Berthelot
+```{r}
+hboutlier <- function(x,r){
+x <- x[is.finite(x)]
+stopifnot(
+length(x) > 0
+, all(x>0)
+)
+xref <- median(x)
+if (xref <= sqrt(.Machine$double.eps))
+warning("Reference value close to zero: results may be inaccurate")
+pmax(x/xref, xref/x) > r
+}
+```
+
+
+## Transformaciones "estadísticas" para machine learning
+### transformación logaritmica
+```{r}
+t=seq(1,10) # anios desde 1987
+subscriptores=c(1.6,2.7,4.4,6.4,8.9,13.1,19.3,28.2,38.2,48.7) # en millonres
+plot(t,subscriptores)
+```
+
+```{r}
+plot(t,log(subscriptores))
+res=lm(log(subscriptores)~t)
+abline(res)
+```
+
+```{r}
+exp(res$coefficients)
+```
+```{r}
+plot(t,subscriptores)
+t=seq(1,10,0.1)
+y=1.300827*exp(0.3774*t)
+lines(t,y,type="l",lwd=2,col="red")
+```
+### Normalización
+```{r}
+sus_norm <- (subscriptores - mean(subscriptores))/sd(subscriptores)
+sus_norm
+scale(subscriptores)
+```
+
+Otras transformaciones:
+* Box-Cox: para que la variable tenga una distribución más cercana a la gaussiana
+* PCA
+
+## Imputaciones 
+
+### Media
+```{r}
+x[is.na(x)] <- mean(x, na.rm = TRUE)
+
+# library(Hmisc)
+# x <- impute(x, fun = mean) # mean imputation
+# x <- impute(x, fun = median) # median imputation
+```
+
+### Aleatorio 
+
+```{r, message=FALSE, warning=FALSE}
+data(women)
+library(Hmisc)
+# add some missings
+height <- women$height
+height[c(6, 9)] <- NA
+height
+(height <- impute(height, "random"))
+height
+```
+
+### KNN
+
+Para variables numéricas se puede imputar la media, no así para variables categóricas
+```{r, message=FALSE, warning=FALSE}
+library(VIM)
+data(iris)
+n <- nrow(iris)
+# provide some empty values (10 in each column, randomly)
+for (i in 1:ncol(iris)) {
+iris[sample(1:n, 10, replace = FALSE), i] <- NA
+}
+iris2 <- kNN(iris)
+
+
+```
+
+### determinísticas
+```{r hot deck imputation, warning=FALSE, message=FALSE}
+library(editrules)
+E <- editmatrix(expression(
+staff + cleaning + housing == total,
+staff >= 0,
+housing >= 0,
+cleaning >= 0
+))
+dat <- data.frame(
+staff = c(100,100,100),
+housing = c(NA,50,NA),
+cleaning = c(NA,NA,NA),
+total = c(100,180,NA)
+)
+dat
+```
+
+
+# 5 - Tidy
+
+#### Caso 1: re-estructurar una tabla en caso de columnas que no son variables
+```{r Caso 1}
+library(tidyr)
+#### Creamos un dataframe de ejemplo de tabla sin procesar
+cuentas_df <- data.frame(
+  dia = c('lunes', 'martes', 'miercoles'),
+  debito = c(20000,25000,3000),
+  credito = c(100000,500, 11000),
+  ajuste = c(80000,24500,4000)
+)
+
+# Utilizamos la funcióm gather del paquete para generar un conjunto de datos "ordenado"
+cuentas_gather <- gather(cuentas_df, key = ' operaciones', value = 'cantidades', debito:ajuste)
+
+# guardamos el archivo como csv, ¿en qué otro formato lo guardarías?
+write.csv2(cuentas_gather, 'Datasets/cuentas.csv')
+
+#Otra manera: con pipes (cuyos creadores (Bache and Wickham, 2016) sugieren que se lea como entonces o después)
+ordenado <- cuentas_df %>%
+  gather(operaciones, cantidades, debito:ajuste)
+
+# generamos un ID?
+ordenado$ID_Operacion <- seq.int(nrow(ordenado)) # una manera
+attributes(ordenado)
+rownames(ordenado) <- seq.int(nrow(ordenado))+1000 # el Id es el nombre de la fila, que se convierte en un atributo nuevo del df:
+attributes(ordenado)
+
+#install.packages('tidyverse') # otra manera a traves del paquete tibble
+```
+
+#### Caso 2: tenemos una observación dispersa en múltiples filas
+
+```{r}
+
+poblaciones_df <- data.frame(
+  pais = c('Argentina ', 'Argentina ', 'Uruguay ', 'Uruguay ','Argentina ', 'Argentina ', 'Uruguay ', 'Uruguay '),
+  Anio = c(1980,1980,1980,1980,1981,1981,1981,1981),
+  tipo = c('total', 'urbana', 'total', 'urbana'),
+  poblacion = c(27000000,23000000,3000000,200000,27000100,23000030,3000001,200000)
+)
+
+poblacion_ordenado <- tidyr::spread(data = poblaciones_df, key = tipo, value = poblacion)
+```
+
+#### Caso 3: una columna contiene más de un valor  
+
+```{r}
+library(dplyr)
+library(plyr)
+library(tidyr)
+# Datos sin procesar
+balance_df <- data.frame(
+  anio = c(2000, 2001, 2002,2003,2004),
+  roa = c('16009500/2202902', '16130290/1887926', '22689382/1437912', '25152363/2112528', '25107346/1899890'),
+	pasivo = c(4438562, 4361452, 4960117, 5981713, 659444)
+	)
+# separamos las columnas 
+try(balance_separado <- balance_df %>%
+  separate_("roa", into =  c("activo", "resultado"),  sep  =  "/"))
+
+# calculamos la roa
+balance_separado <- balance_separado %>%
+      as_tibble() %>%
+      mutate_at(c("activo", "resultado"), funs(as.numeric))
+balance_separado <- balance_separado %>%
+      mutate(roa= ifelse(balance_separado$activo == 0,balance_separado$resultado,
+                         100*(balance_separado$resultado/balance_separado$activo)))
+balance_separado
+
+# balance_separado$activo <- as.numeric(balance_separado$activo)
+# balance_separado$resultado <- as.numeric(balance_separado$resultado)
+# balance_separado$roa <- ifelse(balance_separado$activo == 0,balance_separado$resultado,
+#                                (balance_separado$resultado/balance_separado$activo)*100)
+```
+
+#### Caso 4: unir columnas  
+```{r}
+# volvemos a utilizar el df poblacion
+poblacion_ordenado$mes <- c(10,11,1,3)
+
+poblacion_unite <- unite(data = poblacion_ordenado, 
+      col = Fecha, 
+      sep = "-",
+      mes,Anio)
+
+# otra opción
+#install.packages('zoo')
+library(zoo)
+poblacion_ordenado$fecha <- zoo::as.yearmon(paste(poblacion_ordenado$Anio, poblacion_ordenado$mes, sep='-'))
+
+# tercera opción
+poblacion_ordenado <- poblacion_ordenado[,-6] #quitamos la variable fecha que creamos
+nuevo <-transform(poblacion_ordenado, 
+                  fecha = as.yearmon(paste(poblacion_ordenado$Anio, poblacion_ordenado$mes, sep='-')))
+
+#### pipes en R:
+# utilizo pipe en una sola funcion
+a <- poblaciones_df %>% 
+  spread(key = tipo, value = poblacion) %>% 
+  transform(mes = c(10,11,1,3)) %>% 
+  unite(col = Fecha, sep = "-", mes,Anio)
+```
+
+#### con el paquete reshape2
+```{r}
+
+#install.packages('reshape2')
+library(reshape2)
+# retomar ele ejemplo de las cuentas
+cuentas_df <- data.frame(
+  dia = c('lunes', 'martes', 'miercoles'),
+  debito = c(20000,25000,3000),
+  credito = c(100000,500, 11000),
+  ajuste = c(80000,24500,4000)
+)
+cuentas_melt <- melt(cuentas_df)
+cuentas_melt <- melt(cuentas_df, id.vars = 'dia')
+
+# los datos en formato largo están relacionados con los arrays
+class(Titanic)
+dimnames(Titanic)
+tit <- as.data.frame(Titanic)
+rbind(head(tit), tail(tit))
+
+# a la inversa: la función dcast
+cuentas_dcast <- dcast(cuentas_melt, dia ~ variable)
+```
+
+# 7 - Merge/Join tables
+```{r}
+# Datos iniciales
+
+fechas <- read.csv2('Datasets/fechas.csv')
+cuentas <- read.csv2('Datasets/cuentas.csv')
+
+fechas_procesado <- transform(fechas, month_day_year = as.Date(fechas$month_day_year, format = '%m/%d/%Y'))
+fechas_procesado$dia <- weekdays(fechas_procesado$month_day_year)
+rm(fechas)
+fechas_procesado
+cuentas
+
+#### Merge
+## Inner join
+combinado1 <- merge(x = fechas_procesado,     # Primer data frame
+                    y = cuentas,              # Segundo data frame
+                    by = "dia")               # Columna en común para merge
+
+print(combinado1) #La función merge() realiza por default una "inner join".
+
+## left join: se queda con todos los valores del primer data frame
+left_join <- merge(x = fechas_procesado,              
+                   y = cuentas,              
+                   by = "dia",             
+                   all.x = TRUE)            # Nos quedamos con todos los valores de x? si
+
+print(left_join)
+
+## right join: se queda con todos los valores del segundo dataframe
+right_join <- merge(x = fechas_procesado,              
+                   y = cuentas,              
+                   by = "dia",             
+                   all.y = TRUE)            # Nos quedamos con todos los valores de y? si
+
+print(right_join)
+
+##outer_join
+outer_join <- merge(x = fechas_procesado,              
+                    y = cuentas,              
+                    by = "dia",             
+                    all = TRUE)            # Con qué nos quedamos?
+
+print(outer_join)
+
+#### dplyr también tiene funciones de join....
+library(dplyr)
+# inner_join()
+# semi_join()
+# left_join()
+# anti_join()
+# full_join()
+
+
+```

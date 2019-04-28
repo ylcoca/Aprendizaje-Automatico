@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1556238708653.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3970315687",
+    "id" : "BF1E97B9",
+    "lastKnownWriteTime" : 1554087022,
+    "last_content_update" : 1554087022,
+    "path" : "C:/Workspace/R/Clases prácticas módulo 2-20190409/Scripts/Notebook carga de datos.Rmd",
+    "project_path" : null,
+    "properties" : {
+        "cursorPosition" : "54,8",
+        "scrollLine" : "46"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}

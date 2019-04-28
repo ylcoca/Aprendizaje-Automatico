@@ -1,0 +1,25 @@
+"0","```r
+# libreria
+library(xml2)
+# url copiada
+url2 = \"https://catalogodatos.gub.uy/dataset/da0b8ae3-f228-4601-a04e-96c10a2f2819/resource/7ee77643-ed59-4049-92df-cebe5a35dd59/download/violencia-domestica-y-asociados-por-departamento-y-ao.xml\" 
+
+# lectura del xml
+choco_xml <- read_xml(url2)
+print(choco_xml)
+
+choco_xml %>% 
+  xml_view_tree()
+terminal_xpaths2 <- choco_xml %>% ## get all xpaths
+  xml_get_paths()
+terminal_xpaths2 <- terminal_xpaths2 %>% ## collapse xpaths to unique only
+  unlist() %>%
+  unique()
+
+terminal_nodesets <- lapply(terminal_xpaths2, xml2::xml_find_all, x = choco_xml)
+df2 <- terminal_nodesets %>%
+  purrr::map(xml_dig_df) %>% ## does not dig by default
+  purrr::map(dplyr::bind_rows) 
+df2 <- as.data.frame((df2[1]))
+head(df2)
+```"

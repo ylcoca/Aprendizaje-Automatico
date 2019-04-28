@@ -1,0 +1,6 @@
+"0","paste(""Hay "", length(unique(sp_df$cod_postal)) - length(unique(sp_df$site_code)), "" que no tienen valor unico"")
+"
+"1","[1]"
+"1"," ""Hay  5  que no tienen valor unico"""
+"1","
+"

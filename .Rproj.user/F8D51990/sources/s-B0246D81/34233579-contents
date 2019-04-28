@@ -1,0 +1,918 @@
+---
+title: "Analisis de variables"
+author: "Joselina"
+date: "19 de abril de 2019"
+output: html_document
+---
+
+# 1 - Inicio
+# 1.1. Setup rmarkdown
+Código para setup el ambiente
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file()) # acá tenemos una librería
+```
+
+# 1.2. Paquetes
+* knitr
+* rprojroot
+* devtools
+* tidyverse (dplyr, purr)
+* modelr
+* funModeling
+* dplyr
+* ggplot2
+* GGally)
+* ggcorrplot
+* vcd
+
+```{r, message=FALSE, warning=FALSE}
+
+devtools::install_github("hadley/emo")
+library(tidyverse)
+library(modelr)
+library(funModeling)
+library(dplyr) 
+library(ggplot2)
+library(GGally)
+library(ggcorrplot)
+library(vcd)
+```
+
+
+# 2 - Objetivo de la clase: análisis exploratorio de datos
+...Uno de los muchos enfoques para el análisis de datos 
+
+* Descubrir patrones 
+* Identificar anomalías 
+* Sugerir hipótesis 
+* Verificar supuestos 
+
+[Promovido por John Tukey](https://www.google.com)
+
+## Tipo de resultados del análisis
+
+2.1. Exploratorio
+Por ejemplo, gráficos o cualquier resumen largo de variables. No podemos filtrar los datos, pero nos dan mucha información a la vez. Más utilizado en la etapa EDA.
+
+Se basa mayormente en métodos gráficos.
+
+En principio no desarrolla hipótesis de las variables, pero el objetivo es personal, para una audiencia pequeña (rápido y desprolijo)
+
+2.2. Expositorio
+
+El objetivo es comunicar cierta información hacia una gran audiencia.
+Por lo tanto tiene que estar prolijo y publicable.
+
+2.3. Operativo/Confirmatorio
+
+Los resultados se pueden usar para realizar una acción directamente en el flujo de trabajo de datos (por ejemplo, seleccionando cualquier variable cuyo porcentaje de valores faltantes sea inferior al 20%). Más utilizado en la etapa de preparación de datos.
+
+También es posible usarlos para comenzar con las hipótesis del problema, testear hipótesis y construir modelos estadísticos o de machine learning.
+
+Agrega más test de hipótesis
+
+# 3 - Chequeo inicial de los datos
+
+## 3.1. Ceros, Na, infinitos...
+
+* **Ceros**: Las variables con **muchos ceros** pueden no ser útiles para modelar y, en algunos casos, pueden sesgar dramáticamente el modelo.
+
+* **NA**: Varios modelos excluyen automáticamente las filas que tienen valores NA (**random forest** por ejemplo). En consecuencia, el modelo final puede resultar sesgado debido a varias filas faltantes por una sola variable. Por ejemplo, si los datos contienen tan sólo una de las 100 variables con el 90% de datos NA, el modelo se ejecutará con sólo el 10% de las filas originales. 
+
+* **Inf**: Los valores infinitos pueden ocasionar un comportamiento inesperado en algunas funciones en R.
+
+* **Type**: Algunas variables están codificadas como números, pero son códigos o categorías y los modelos **no las manejan** de la misma manera.
+
+* **Unique**: Las variables factor/categóricas con un alto número de valores diferentes (~30) tienden a sobreajustar si las categorías tienen una baja cardinalidad (**árboles de decisión,** por ejemplo).
+
+<span style="color:gray">Fuente: Casas, Pablo (2019). Data Science Live Book.Tomado de https://livebook.datascienceheroes.com/index.html#acknowledgements</span>
+
+
+```{r}
+data(heart_disease)
+funModeling::df_status(heart_disease)
+```
+
+* **q_zeros**: cantidad de ceros (p_zeros: en porcentaje)
+* **q_inf**: cantidad de valores infinitos (p_inf: en porcentaje)
+* **q_na**: cantidad de NA (p_na: en porcentaje)
+* **tipo**: factor o numérico
+* **único**: cantidad de valores únicos
+
+### 3.1.1 Ceros
+
+Identificamos las variables con mucha cantidad de ceros
+```{r}
+# guardamos el status como un dataframe
+my_data_status=df_status(heart_disease, print_results = F)
+# ordenamos las variables con mayor cantidad de ceros
+arrange(my_data_status, -p_zeros) %>% select(variable, q_zeros, p_zeros)
+```
+
+Removemos las variables que tengan más de un 60% de ceros
+```{r}
+# Primero las identificamos
+vars_to_remove=filter(my_data_status, p_zeros > 60)  %>% .$variable
+vars_to_remove
+# Segundo las quitamos
+heart_disease_2=select(heart_disease, -one_of(vars_to_remove))
+funModeling::df_status(heart_disease_2)
+```
+
+### 3.1.2. Valores faltantes
+
+#### Cuando el valor faltante representa información
+Por ejemplo, imaginen una agencia de viajes que une dos tablas, una de personas y otra de países. El resultado muestra la cantidad de viajes por persona: 
+
+```{r}
+df_travel=data.frame(person=c("Fotero", "Herno", "Mamarul"), South_Africa=c(1, NA, 34), Brazil=c(5,NA,40), Costa_Rica=c(5,NA,NA), stringsAsFactors = F)
+
+df_travel
+
+```
+
+
+En este caso, NA debería ser reemplazado por 0, indicando cero viajes en esa intersección persona-país. Después de la conversación, la tabla está lista para usar.
+
+**Ejemplo: Reemplazar todos los valores NA por 0**
+
+```{r}
+# Hacer una copia
+df_travel_2=df_travel
+
+# Reemplazar todos los valores NA con 0
+df_travel_2[is.na(df_travel_2)]=0
+df_travel_2
+```
+
+**Ejemplo: Reemplazar los valores NA por 0 sólo en ciertas columnas**
+
+Probablemente el escenario más común sea reemplazar NA por algún valor -cero en este caso- sólo en algunas columnas. Definimos un vector que contiene todas las variables a reemplazar y luego aplicamos la función `mutate_at` del paquete `dplyr`.
+
+```{r, message=FALSE}
+# Reemplazar valores NA con 0 solo en las columnas seleccionadas
+vars_to_replace=c("Brazil", "Costa_Rica")
+df_travel_3=df_travel %>% mutate_at(.vars=vars_to_replace, .funs = funs(ifelse(is.na(.), 0, .)))
+
+df_travel_3
+
+```
+
+#### Cuando el valor faltante es un valor faltante
+En otras ocasiones, tener un valor nulo es correcto, está expresando la ausencia de algo. Debemos tratarlos para poder usar la tabla. Muchos modelos predictivos no pueden manejar tablas de entrada con valores faltantes.
+
+En algunos casos, una variable es medida _después_ de un período de tiempo, por lo que tenemos datos a partir de este momento y NA en las instancias previas.
+
+A veces hay casos aleatorios, como una máquina que falla al recoletar datos o un usuario que se olvidó de completar algún campo en un formulario, entre otros.
+
+Aquí aparece una pregunta importante: _¿Qué hacemos?_ `r emo::ji("scream")`
+
+Las siguientes recomendaciones son simplemente eso, recomendaciones. Pueden probar diferentes enfoques para descubrir cuál es la mejor estrategia para los datos que están analizando. **No existe un "talle único y universal" en esto**.
+
+Análisis avanzado de datos faltantes: https://livebook.datascienceheroes.com/data-preparation.html#missing_data
+
+# 4 - Análisis univariado
+
+El análisis univariado incluye:
+
+1. Medidas de tendencia central
+
++ Media
++ Mediana
++ Modo
+
+2. Medidas de dispersión
+
++ Min
++ Max
++ Distancia
++ Cuartiles
++ Varianza
++ Desviación estándar
+
+3. Otras medidas incluyen
+
++ Oblicuidad
++ Kurtosis
+
+Los métodos gráficos incluyen los siguientes
+
+* Histograma
+* Diagramas de caja
+* Gráficos de barras
+* Gráficos de densidad (kernel)
+
+
+
+* Análisis univariado en variable categórica
+
++ Frecuencia, porcentaje, valor acumulativo y gráficos 
+
+* Análisis univariado con variables numéricas
+
++ Percentil, dispersión, desviación estándar, media, valores superior e inferior.
++ Percentil vs. cuantil vs. cuartil
++ Kurtosis, asimetría, rango intercuartil, coeficiente de variación
++ gráficos de Distribuciones
+
+## 4.1. Variable continua/numérica
+
+### 4.1.1. ¿Cuáles variables son numéricas?
+
+```{r}
+# usando sapply:
+nums <- unlist(lapply(heart_disease, is.numeric))  
+numericos_apply <- heart_disease[,nums]
+
+# de una forma más "moderna"
+numericos_purr <- heart_disease[ , purrr::map_lgl(heart_disease, is.numeric)]
+
+# de una forma sencilla con dplyr
+numericos_dplyr <- dplyr::select_if(heart_disease, is.numeric)
+
+# con pipelines y purr
+numericos_pipe <- heart_disease %>% 
+  purrr::keep(is.numeric) 
+```
+
+
+### 4.1.2. Descriptivos:
+
+```{r}
+heart_disease %>% 
+  purrr::keep(is.numeric) %>% describe
+```
+
+
+* **n**: cantidad de filas que no son de NA. 
+* **missing**: número de valores perdidos.
+* **unique**: número de valores únicos (o distintos)
+* **Info**: un estimador de la cantidad de información presente en la variable y no importante en este punto.
+* **Mean**: la media o promedio
+* **Numbers**: .05, .10, .25, .50, .75, .90 y .95 representan los percentiles. Estos valores son realmente útiles ya que nos ayudan a describir la distribución. Se cubrirá en profundidad más adelante, es decir, .05 es el percentil 5.
+* **lowest and highest**: los cinco valores más bajos / más altos. Aquí, podemos detectar los valores atípicos y los errores de datos. Por ejemplo, si la variable representa un porcentaje, entonces no puede contener valores negativos.
+
+### 4.1.3. Distribución
+
+#### Box plot
+
+![Caption for the picture.](Materiales/boxplot.png)
+
+```{r}
+boxplot(heart_disease$age,
+        main = toupper("Boxplot of Age"),
+        ylab = "Age in years",
+        col = "blue")
+```
+
+
+```{r}
+boxplot(heart_disease$serum_cholestoral,
+        main = toupper("Boxplot of Age"),
+        ylab = "Age in years",
+        col = "blue")
+```
+
+
+#### Kernel density
+
+```{r}
+d <- density(heart_disease$age)
+plot(d, main = "Kernel density of Age")
+polygon(d, col = "red", border = "blue")
+```
+
+
+#### histograma vs normalidad
+
+Consiste en representar los datos mediante un histograma y superponer la curva de una distribución normal con la misma media y desviación estándar que muestran los datos.
+
+```{r}
+ggplot(data = heart_disease, aes(x = age)) +
+  geom_histogram(aes(y = ..density.., fill = ..count..)) +
+  scale_fill_gradient(low = "#DCDCDC", high = "#7C7C7C") +
+  stat_function(fun = dnorm, colour = "firebrick",
+                args = list(mean = mean(heart_disease$age),
+                            sd = sd(heart_disease$age))) +
+  ggtitle("Histograma + curva normal teórica") +
+  theme_bw()
+
+```
+
+#### Gráficos de quantiles teóricos
+
+Consiste en comparar los cuantiles de la distribución observada con los cuantiles teóricos de una distribución normal con la misma media y desviación estándar que los datos. Cuanto más se aproximen los datos a una normal, más alineados están los puntos entorno a la recta.
+
+```{r}
+qqnorm(heart_disease$age, pch = 19, col = "gray50")
+qqline(heart_disease$age)
+```
+
+**Consecuencias de la falta de normalidad**
+
+El hecho de no poder asumir la normalidad influye principalmente en los test de hipótesis paramétricos (t-test, anova,…) y en los modelos de regresión. Las principales consecuencias de la no normalidad son:
+Los estimadores mínimo-cuadráticos no son eficientes (de mínima varianza).
+Los intervalos de confianza de los parámetros del modelo y los contrastes de significancia son solamente aproximados y no exactos.
+El teorema del límite central requiere que la población o poblaciones de las que proceden las muestras tengan una distribución normal, no que la tengan las muestras. Si las muestras se distribuyen de forma normal, se puede aceptar que así lo hacen las poblaciones de origen. En el caso de que las muestras no se distribuyan de forma normal pero se tenga certeza de que las poblaciones de origen sí lo hacen, entonces, los resultados obtenidos por los contrastes paramétricos sí son válidos. El teorema del límite central, permite reducir los requerimientos de normalidad cuando las muestras suficientemente grandes.
+
+<span style="color:gray">Fuente: Joaquín Amat Rodrigo.Tomado de https://rpubs.com/Joaquin_AR/218465</span>
+
+**Contrastes de hipótesis**
+
+*Test*
+
+### 4.1.4. Transformaciones
+#### Estandarización de variables continuas
+
+1. Métodos
+
+* Valores Z
+* Escala min-max
+* Método de la Desviación estándar
+* Método del Rango
+
+2. ¿Cuándo estandarizar?
+Antes de:
+
+* Cluster Analysis
+* Principal Component Analysis
+* k-nearest neighbors con medidas de distancias euclidianas
+* Support Vector Machine (SVM)
+* Lasso and Ridge Regression
+* En regresión cuando hay dos variables con interacción. Mejor centrarlas para ver la real interacción con la variable dependiente.
+
+3. ¿Por qué? Por los siguientes problemas de escala
+```{r}
+boxplot(heart_disease$serum_cholestoral, heart_disease$age,
+main = "Comparación de varios boxplots",
+at = c(1,2),
+names = c("colesterol", "edad"),
+las = 2,
+col = c("orange","red"),
+border = "brown",
+horizontal = TRUE,
+notch = TRUE
+)
+```
+
+Seleccionamos las variables a escalar, de nuestro dataframe, las transformamos y graficamos el boxplot, todo en un mismo paso:
+
+```{r}
+heart_disease %>%
+  select(serum_cholestoral, age) %>%
+  mutate_each_(funs(scale(.) %>% as.vector), vars=c("serum_cholestoral","age")) %>%
+  gather(key = 'variables', value = 'valores', serum_cholestoral:age) %>%
+  ggplot(., aes(variables, valores)) + 
+  geom_boxplot()
+```
+
+En dos pasos y para todas las variables numéricas:
+* **Paso 1**: transformar el dataframe, estandarizar las variables numéricas
+* **Paso 2**: Gráficar
+```{r}
+# Paso 1
+## Opción 1 - Transformación de datos
+heart_disease_2s <- heart_disease %>%
+  select_if(is.numeric) %>%
+  mutate_all(funs(scale(.) %>% as.vector))
+## Opción 2 - Transformación de datos
+heart_disease_3s <- heart_disease %>%
+  mutate_if(is.numeric, funs(scale(.) %>% as.vector))
+# Paso 2
+## Opción 1 gráfico
+boxplot(heart_disease_2s$serum_cholestoral, heart_disease_2s$age,
+main = "Comparación de varios boxplots",
+at = c(1,2),
+names = c("colesterol", "edad"),
+las = 2,
+col = c("orange","red"),
+border = "brown",
+horizontal = TRUE,
+notch = TRUE
+)
+## opción 2 gráfico
+heart_disease_3s %>%
+  select(serum_cholestoral, age) %>%
+  gather(key = 'variables', value = 'valores', serum_cholestoral:age) %>%
+  ggplot(., aes(variables, valores)) + 
+  geom_boxplot()
+```
+
+#### Outliers
+
+Identificamos los outliers de una variable y quitamis dichas observaciones a todo el dataset
+
+1. Identifico los outliers
+```{r}
+boxplot(heart_disease_2s$serum_cholestoral)$out
+```
+
+```{r}
+boxplot(heart_disease_2s$serum_cholestoral, plot = FALSE)$out
+```
+
+Los guardo en un objeto
+
+```{r}
+outliers <- boxplot(heart_disease_2s$serum_cholestoral, plot = FALSE)$out
+```
+
+2. Identifico las observaciones que van a dejar de ser parte del dataframe
+```{r}
+heart_disease_2s[which(heart_disease_2s$serum_cholestoral %in% outliers),]
+```
+
+```{r}
+heart_disease_sin_O <- heart_disease_2s[-which(heart_disease_2s$serum_cholestoral %in% outliers),]
+```
+
+
+## 4.2. Variable categórica
+Los datos categóricos pueden representarse en tres formas diferentes en R, y en ocasiones es necesario convertir de una forma a otra, para realizar pruebas estadísticas, ajustar modelos o visualizar los resultados.
+
+### 4.2.1. Identificación ¿Cuáles variables son categóricas?
+
+```{r}
+# usando sapply:
+factores <- unlist(lapply(heart_disease, is.factor))  
+factores_apply <- heart_disease[,factores]
+
+# de una forma más "moderna"
+factores_purr <- heart_disease[ , purrr::map_lgl(heart_disease, is.factor)]
+
+# de una forma sencilla con dplyr
+factores_dplyr <- dplyr::select_if(heart_disease, is.factor)
+
+# con pipelines y purr
+factores_pipe <- heart_disease %>% 
+  purrr::keep(is.factor) 
+```
+
+### 4.2.2. Descriptivos
+Ejercicio: descriptivos de los factores
+```{r}
+
+```
+
+### 4.2.3. Resúmenes numéricos
+
+```{r}
+table(heart_disease$chest_pain)
+table(heart_disease$chest_pain)/sum(table(heart_disease$chest_pain))
+prop.table(table(heart_disease$chest_pain))
+```
+
+### 4.2.4 Resúmenes gráficos y frecuencias
+
+#### Gráfico de barras
+
+```{r}
+ ggplot(heart_disease, aes(x = chest_pain))  +
+  geom_bar()
+```
+
+#### Frecuencias de todas las variables categóricas
+
+```{r}
+funModeling::freq(data=heart_disease)
+```
+
+
+### 4.2.5. Variables de alta cardinalidad en estadística descriptiva 
+Una variable de **alta cardinalidad** es aquella que puede tomar _muchos_ valores diferentes. Por ejemplo, la variable país. 
+
+Este capítulo cubrirá la reducción de la cardinalidad basada en la regla de Pareto, usando la función `freq` que da una visión rápida sobre dónde se concentran la mayoría de los valores y la distribución de la variable.
+
+El siguiente ejemplo contiene una encuesta de 910 casos, con 3 columnas: `person`, `country` y `has_flu`, que indica haber tenido gripe en el último mes.
+
+```{r , message=F}
+library(funModeling) 
+```
+
+Los datos de `data_country` están incluidos en el paquete `funModeling`.
+Rápido análisis numérico de `data_country` (primeras 10 filas)
+
+```{r data-preparation-nominal-variable, fig.height=9, fig.width=5, dpi=300, fig.cap="Análisis de frecuencia por país", out.extra=''}
+# Graficar las primeras 10 filas
+head(data_country, 10)
+```
+
+```{r}
+# Explorar los datos, visualizando solamente las primeras 10 filas
+head(freq(data_country, "country"), 10)
+
+```
+
+
+```{r data-preparation-nominal-variable-2, fig.height=1.5, fig.width=5, fig.cap="Análisis de frecuencia de casos con gripe", out.extra=''}
+
+# Explorar los datos
+freq(data_country, "has_flu")
+
+```
+
+La última tabla muestra que hay **sólo 83 filas** en las que `has_flu="yes"`, lo que representa cerca del 9% del total de personas (que tuvieron gripe).
+
+Pero muchos de ellos casi no tienen participación en los datos. Esta es la _cola larga_, por lo que una técnica para reducir la cardinalidad es conservar aquellas categorías que están presentes en un alto porcentaje de los datos, por ejemplo 70, 80 o 90%, el principio de Pareto.
+
+```{r data-preparation-profiling-nominal-variable}
+# La función 'freq', del paquete 'funModeling', recupera el porcentaje acumulado que nos ayudará a hacer el corte. 
+country_freq=freq(data_country, 'country', plot = F)
+
+# Dado que 'country_freq' es una tabla ordenada por frecuencia, inspeccionemos las primeras 10 filas que tienen la mayor participación.
+country_freq[1:10,]
+```
+
+Vemos que 10 representan más del 70% de los casos. Podemos asignar la categoría `other` a los casos restantes y graficar:
+
+```{r data-preparation-profiling-nominal-variable-2, fig.height=2.3, fig.width=4.2, fig.cap="Variable país modificada - análisis de frecuencia", out.extra=''}
+data_country$country_2=ifelse(data_country$country %in% country_freq[1:10,'country'], data_country$country, 'other')
+freq(data_country, 'country_2')
+```
+
+# 5 - Análisis bivariado
+
+El análisis bivariado incluye:
+1. Tablas cruzadas
+2. Covarianza
+3. Correlación
+4. Las técnicas avanzadas incluyen:
++ Análisis de conglomerados *más adelante lo veremos*
++ Análisis de varianza (ANOVA) *si lo vemos*
++ Análisis factorial *no lo vamos a ver*
++ Análisis de componentes principales (PCA) *depende*
+
+Gráficos
+* Scatterplot
+* Box plot
+
+## 5.1. Continua y continua
+
+```{r, message=FALSE, warning=FALSE}
+ggplot(sim1, aes(x, y)) + 
+  geom_point()
+```
+
+```{r, message=FALSE, warning=FALSE}
+models <- tibble(
+  a1 = runif(250, -20, 40),
+  a2 = runif(250, -5, 5)
+)
+
+ggplot(sim1, aes(x, y)) + 
+  geom_abline(aes(intercept = a1, slope = a2), data = models, alpha = 1/4) +
+  geom_point() 
+```
+
+
+## 5.2. Continua y categórica
+```{r}
+funModeling::freq(data=heart_disease, input = c('thal','chest_pain'))
+```
+
+### Histograma
+
+```{r}
+heart_disease %>%
+    ggplot(aes(max_heart_rate)) +
+    geom_histogram(binwidth = 1.25, color = "black",fill = "grey") +
+    labs(title = "Distribución frecuencia cardíaca máxima relativo al género",
+         x = "frecuencia cardíaca máxima",
+         y = "cantidad de dolores de pecho") +
+    theme_minimal() +
+    scale_x_continuous(breaks = seq(7.5,35,2.5)) +
+    facet_grid(gender~.)
+```
+
+
+
+```{r}
+heart_disease %>%
+    ggplot(aes(max_heart_rate)) +
+    geom_histogram(binwidth = 1.25, color = "black",fill = "grey") +
+    labs(title = "Distribución frecuencia cardíaca máxima relativo a cantidad de dolores de pecho",
+         x = "frecuencia cardíaca máxima",
+         y = "cantidad de dolores de pecho") +
+    theme_minimal() +
+    scale_x_continuous(breaks = seq(7.5,35,2.5)) +
+    facet_grid(chest_pain~.)
+```
+
+
+
+### Boxplot 
+
+```{r}
+posicion <- readRDS("Datasets/posicion.rds")
+bateo <- readRDS("Datasets/bateo.rds")
+datos <- data.frame(posicion = posicion, bateo = bateo)
+```
+
+Dado que el número de observaciones por grupo no es constante, se trata de un modelo no equilibrado. 
+
+```{r}
+table(datos$posicion)
+aggregate(bateo ~ posicion, data = datos, FUN = mean)
+aggregate(bateo ~ posicion, data = datos, FUN = sd)
+```
+
+Este tipo de representación permite identificar de forma preliminar si existen asimetrías, datos atípicos o diferencia de varianzas. En este caso, los 4 grupos parecen seguir una distribución simétrica. En el nivel IF se detectan algunos valores extremos que habrá que estudiar con detalle por si fuese necesario eliminarlos. El tamaño de las cajas es similar para todos los niveles por lo que no hay indicios de falta de homocedasticidad.
+
+```{r}
+ggplot(data = datos, aes(x = posicion, y = bateo, color = posicion)) +
+    geom_boxplot() +
+    theme_bw()
+```
+
+
+
+<!-- ### -->
+
+<!-- ```{r} -->
+<!-- ggplot(data = heart_disease, mapping = aes(x = resting_blood_pressure))+ -->
+<!--   geom_freqpoly(mapping = aes(color = gender), binwidth = 500) -->
+<!-- ``` -->
+
+
+
+### Normalidad
+
+El estudio de normalidad puede hacerse de forma gráfica (qqplot) o con test de hipótesis. 
+De forma gráfica:
+```{r}
+par(mfrow = c(2,2))
+qqnorm(datos[datos$posicion == "C","bateo"], main = "C")
+qqline(datos[datos$posicion == "C","bateo"])
+qqnorm(datos[datos$posicion == "DH","bateo"], main = "DH")
+qqline(datos[datos$posicion == "DH","bateo"])
+qqnorm(datos[datos$posicion == "IF","bateo"], main = "IF")
+qqline(datos[datos$posicion == "IF","bateo"])
+qqnorm(datos[datos$posicion == "OF","bateo"], main = "OF")
+qqline(datos[datos$posicion == "OF","bateo"])
+```
+
+Con test de hipótesis:
+
+```{r}
+par(mfrow = c(1,1))
+```
+
+Dado que los grupos tienen mas de 50 eventos se emplea el test de Kolmogorov-Smirnov con la corrección de Lilliefors. La función en R se llama lillie.test() y se encuentra en el paquete nortest. Si fuesen menos de 50 eventos por grupo se emplearía el test Shapiro-Wilk.
+
+### ANOVA
+**Idea intuitiva del ANOVA**
+
+La técnica de análisis de varianza (ANOVA) también conocida como análisis factorial y desarrollada por Fisher en 1930, constituye la herramienta básica para el estudio del efecto de uno o más factores (cada uno con dos o más niveles) sobre la media de una variable continua. Es por lo tanto el test estadístico a emplear cuando se desea comparar las medias de dos o más grupos. Esta técnica puede generalizarse también para estudiar los posibles efectos de los factores sobre la varianza de una variable.
+
+La hipótesis nula de la que parten los diferentes tipos de ANOVA es que la media de la variable estudiada es la misma en los diferentes grupos, en contraposición a la hipótesis alternativa de que al menos dos medias difieren de forma significativa. ANOVA permite comparar múltiples medias, pero lo hace mediante el estudio de las varianzas.
+
+```{r}
+anova1 <- aov(datos$bateo ~ datos$posicion)
+summary(anova1)
+```
+
+**Interpretación**
+
+Con un p-value = 0.115, mayor de 0.05, podemos aceptar la hipótesis nula. Se acepta la hipótesis nula de que no hay diferencia en al menos una de las medias de los grupos. Es decir, la posición no tiene un efecto significativo en el bateo.
+
+```{r}
+anova2 <- aov(heart_disease$max_heart_rate ~ factores_apply$exter_angina)
+summary(anova2)
+```
+
+**Ejercicio: interpretación**
+
+## Predictor continuo, dependiente binaria
+
+```{r}
+x1<-seq(0,40,1)
+x2<-seq(41,81,1)
+
+y1 <- NULL
+y2 <- NULL
+  
+for (i in 1:41) {
+  y1[i] <- (1/5)*x1[i]^(1/10) + (1/4)*x1[i] + rnorm(1,0,1)
+  y2[i] <- (1/5)*x2[i]^(1/10) + (1/4)*x2[i] + rnorm(1,0,1)
+}
+
+plot(x1, y1, pch="0", main="cutoff from Y = 0 to Y = 1 at x = 40",col="red",ylim=c(0,30),xlim=c(0,80),xlab="predictor",ylab="outcome")
+points(x2,y2,pch="1",col="blue")
+abline(v=40,lty=2)
+```
+
+
+```{r}
+qplot(heart_disease$max_heart_rate, numericos_apply$resting_blood_pressure, data = heart_disease, colour = heart_disease$thal)
+```
+
+```{r}
+data("diamonds")
+color_pallete_function <- colorRampPalette(
+  colors = c("red", "orange", "blue"),
+  space = "Lab" # Option used when colors do not represent a quantitative scale
+  )
+num_colors <- nlevels(diamonds$color)
+diamond_color_colors <- color_pallete_function(num_colors)
+plot(
+  x = diamonds$carat,
+  y = diamonds$price,
+  xlab = "Carat",
+  ylab = "Price",
+  pch = 20, # solid dots increase the readability of this data plot
+  col = diamond_color_colors[diamonds$color]
+)
+legend(
+  x ="topleft",
+  legend = paste("Color", levels(diamonds$color)), # for readability of legend
+  col = diamond_color_colors,
+  pch = 19, # same as pch=20, just smaller
+  cex = .7 # scale the legend to look attractively sized
+)
+```
+
+
+## 5.3. Categórica y categórica
+
+Varias funciones producen tablas cruzadas simples (tablas de contingencia); tabla, ftable, xtabs.
+
+### Tablas que solo contienen frecuencias (cuentas):
+* Tabla (v1, v2) Tabla bivariada
+* ftable (v1 ~ v2) Igual que usando la interfaz de fórmula
+* xtabs (~ v1 + v2) Igual que la interfaz de fórmula
+* xtabs (~ v1 + v2 + v3) Tres variables
+* ftable (xtabs (~ v1 + v2 + v3)) Mismo, pero presentación alternativa
+* tab1 <- table (v1, v2) almacena la tabla como objeto para su uso posterior
+* addmargins (tab1) agrega márgenes (sumas de filas y columnas a la tabla)
+* margin.table (tab1,1) muestra márgenes de fila
+* margin.table (tab1,2) muestra los márgenes de las columnas
+
+### CrossTable 
+Pproduce tablas de referencias cruzadas. Por defecto, las celdas de la tabla muestran recuentos, contribuciones de chi-cuadrado, fila, columna y proporciones totales (predeterminado, SAS) o porcentajes (formato SPSS).
+libraria (gmodels)
+
+* CrossTable(v1, v2) con proporciones totales de filas y columnas
+* CrossTable(v1, v2, formato = "SPSS") con porcentajes totales, filas y columnas
+* CrossTable(v1, v2, dígitos = 1, prop.r = F, prop.t = F, prop.chisq = F, formato = "SPSS") Solo porcentajes de columna con un solo dígito decimal.
+*CrossTable(v1, v2, missing.include = TRUE) Los valores que faltan se incluyen en la tabla.
+* CrossTable(v1, v2, chisq = VERDADERO) agregar prueba de chi-cuadrado
+* CrossTable(v1, v2, fisher = TRUE, mcnemar = TRUE) agrega fisher y pruebas de McNemar
+
+```{r}
+library(vcd)
+structable(chest_pain+gender ~ thal, heart_disease)
+```
+
+###  Los contrastes de hipótesis para variables cualitativas 
+Se realizan mediante test de frecuencia o proporciones. Dentro de esta categoría existen distintos tipos de test, la utilización de uno u otro depende de qué tipo de información se quiera obtener:
+
+* **Test de distribución esperada o “goodness of fit”**: Se emplean para comparar la distribución observada frente a una distribución esperada o teórica.
+
+* ** Test de diferencia de frecuencias o test de independencia**: Se emplean para estudiar si la frecuencia de observaciones es significativamente distinta entre dos o más grupos.
+
+En los test de “goodness of fit” solo hay una variable asociada a cada observación, mientras que en los test de independencia hay dos variables asociadas a cada observación. También se emplean distintos test dependiendo del tipo de datos (independientes o dependientes) con los que se vaya a trabajar. Las siguientes tablas muestran algunos de los más empleados.
+      
+#### **test de independencia**
+se puede utilizar chisq.test () para indicar la dependencia de la variable y la columna. Por defecto, el valor p se calcula a partir de la distribución asintótica de ji cuadrado del estadístico de prueba. Opcionalmente, el valor p se puede derivar a través de la simulación de Monte Carlo
+
+```{r}
+HairEye <- margin.table(HairEyeColor, c(1, 2))
+HairEye
+chisq.test(HairEye)
+```
+
+Dado que el test ha resultado significativo, se quiere determinar para que niveles el número de observaciones difiere significativamente de lo esperado.
+
+```{r}
+chisq.test(x = HairEye)$residuals
+chisq.test(x = HairEye)$stdres
+```
+
+ Las mayores desviaciones respecto a los valores esperados se dan en los ojos Brown y Blue Para tener un estudio más exacto de si hay diferencias significativas en estos niveles, se divide la tabla en tablas 2X2 
+ 
+```{r}
+marrones_y_azules <- HairEye[, c(1,2)]
+marrones_y_azules
+```
+
+```{r}
+chisq.test(marrones_y_azules)
+assocstats(marrones_y_azules)
+```
+
+
+####  **La prueba de Fisher** 
+Es el test exacto utilizado cuando se quiere estudiar si existe asociación entre dos variables cualitativas, es decir, si las proporciones de una variable son diferentes dependiendo del valor que adquiera la otra variable. En la gran mayoría de casos, el test de Fisher se aplica para comparar dos variables categóricas con dos niveles cada una (tabla 2x2). Es posible utilizarlo con tablas 2xK niveles pero los requerimientos de cálculo son altos.
+      El test de Fisher es más preciso que sus equivalentes aproximados (test chi-square de independencia o G–test de independencia) cuando el número de eventos esperado por nivel es pequeño. Se recomienda utilizarlo siempre que sea posible (tiempo de computación) aunque para observaciones totales >1000 los resultados de los test aproximados son muy parecidos.
+
+*Ho:* Las variables son independientes por lo que una variable no varía entre los distintos niveles de la otra variable.
+
+*Ha:* Las variables son dependientes, una variable varía entre los distintos niveles de la otra variable. 
+
+```{r}
+fisher.test(table(factores_apply$fasting_blood_sugar, factores_apply$chest_pain), alternative = "two.sided")
+```
+
+**Fuerza de asociación**
+```{r}
+library(vcd)
+assocstats(table(factores_apply$fasting_blood_sugar, factores_apply$chest_pain))
+```
+
+No hay evidencias suficientes.
+
+Por más tests vea: https://rpubs.com/Joaquin_AR/220579 y https://rpubs.com/Joaquin_AR/218468. Por más artículos de Joaquin Amat Rodrigo: https://rpubs.com/Joaquin_AR
+
+### Mosaicos
+```{r}
+HEC <- structable(HairEyeColor)
+mosaic(HEC, type = "expected")
+mosaic(HEC, split_vertical = c(TRUE, FALSE, TRUE), labeling_args = list(abbreviate_labs = c(Eye = 3, Sex =1)))
+
+
+```
+
+
+
+# 6 - Análisis multivariado
+
+Se realiza para comprender las interacciones entre diferentes campos en el conjunto de datos (o) para encontrar interacciones entre  más de 2 . Ej: - Diagrama de par y diagrama de dispersión 3D.
+
+### Descriptivos
+```{r}
+describe(heart_disease)
+```
+
+### Correlación
+
+Las correlaciones no explican nada, solo reflejan un patrón en los datos. Depende de nosotros encontrar una explicación plausible de por qué dos cosas covarían. Hay que venir con una explicación plausible. Sólo porque dos cosas parecen ocurrir al mismo tiempo, no quiere decir que una es causa de la otra, reclamar como tal sería sin tener en cuenta el dicho desde hace mucho tiempo que la correlación no es causalidad.
+
+También debemos reconocer que no todas las correlaciones son estadísticamente significativas!!!
+
+#### Matriz de correlación entre variables numéricas
+```{r}
+
+heart_disease %>%
+  na.omit() %>%
+    select_if(is.numeric) %>%
+    cor %>% 
+    ggcorrplot(type = "lower", ggtheme = theme_minimal, colors = c("#6D9EC1","white","#E46726"),
+               show.diag = T,
+               lab = T, lab_size = 3,
+               title = "Correlation Matrix for the heart_disease dataset",
+               legend.title = "Correlation Value",
+               outline.color = "white",
+               hc.order = T)
+```
+
+#### ¿Correlación o no Correlación?: Test de Pearson
+
+Dadas dos variables numéricas, el grado de correlación se mide a través del Coeficiente de Correlación Producto-Momento de Pearson
+
+Hipótesis: (siempre es el mismo juego de palabras)
+
+* Hipótesis nula/H0: No hay relación.
+* Hipótesis alternativa/H1: Hay relación.
+
+```{r}
+cor.test(heart_disease$oldpeak, heart_disease$slope)
+```
+
+El coeficiente estimado de correlacioón es 0.5775, con un p-valor de 0.0000000000000022 menor a 0.05 de nivel de significancia, dentro de un intervalo de confianza de (0.497, 0.648). Se puede rechazar la hipótesis nula de no correlación entre las dos medidas
+
+```{r}
+cor.test(heart_disease$max_heart_rate, heart_disease$heart_disease_severity)
+cor.test(heart_disease$heart_disease_severity, heart_disease$num_vessels_flour)
+cor.test(heart_disease$exer_angina, heart_disease$serum_cholestoral)
+```
+
+
+```{r}
+heart_disease  %>%
+  na.omit() %>%
+  select_if(is.numeric)%>%
+  as.matrix() %>%
+  rcorr
+
+```
+
+
+### Matriz de gráfico de dispersión con suavizado
+
+Un enfoque alternativo que proporciona un control mucho más preciso del gráfico puede basarse en la función ggpairs de GGally (consulte la página de GGobi Github para obtener una amplia documentación). Como en ggscatmat, esta función toma el conjunto de datos como un argumento, seguido de las variables especificadas en el argumento de las columnas. La parte del triángulo inferior y superior de la matriz y la diagonal se especifican mediante los argumentos inferior, superior y diag. Los valores de estos argumentos deben pasarse como una lista.
+
+```{r}
+ggscatmat(heart_disease, columns= c("resting_blood_pressure","serum_cholestoral", "max_heart_rate"))
+```
+
+### Parcelas de dispersión por parejas
+
+Con el fin de obtener un diagrama de dispersión en los triángulos inferiores y superiores, establecemos la parte superior = lista (continua = "puntos") en los argumentos a ggpairs. Además, para tener histogramas en la diagonal, establezca set diag = list (continue = "barDiag").
+
+```{r}
+ggpairs(heart_disease, columns=c("resting_blood_pressure","serum_cholestoral", "max_heart_rate"),
+        upper=list(continuous="points"),diag=list(continuous="barDiag"))
+```
+

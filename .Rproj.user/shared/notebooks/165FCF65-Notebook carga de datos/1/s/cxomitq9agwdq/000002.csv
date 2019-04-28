@@ -1,0 +1,8 @@
+"0","```r
+# paquete para levantar datos en formato .sav de spss
+# if (!require('foreign'))
+# {
+#   install.packages('foreign', repos = 'http://cran.us.r-project.org');
+#   library(foreign);
+# }
+```"

@@ -1,0 +1,4 @@
+"0","market <- read.csv2('Datasets/direct_marketing.csv')
+"
+"2","Error in file(file, ""rt"") : cannot open the connection
+"

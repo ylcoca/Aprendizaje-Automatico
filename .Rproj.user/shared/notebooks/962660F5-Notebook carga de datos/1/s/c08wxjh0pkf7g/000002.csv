@@ -1,0 +1,20 @@
+"0","```r
+# Podemos definir los path como un objeto
+path_csv <- 'Datasets/df.csv'
+path_feather <- 'Datasets/df.feather'
+path_rdata <- 'Datasets/df.RData'
+path_rds <- 'Datasets/df.rds'
+
+# Luego guardamos los objetos
+write.csv(df, file = path_csv, row.names = F)
+write_feather(df, path_feather)
+save(df, file = path_rdata)
+saveRDS(df, path_rds)
+
+# Y ahora chequemos el tamaÃ±o de los objetos
+
+files <- c('Datasets/df.csv', 'Datasets/df.feather', 'Datasets/df.RData', 'Datasets/df.rds')
+info <- file.info(files)
+info$size_mb <- info$size/(1024 * 1024)
+print(subset(info, select=c(\"size_mb\")))
+```"

@@ -1,0 +1,194 @@
+"0","#Instalar paquetes "
+"0","paquetes = c('foreign', 'feather', 'data.table', 'microbenchmark', 'purrr', 'tidyr', 'XML', 'xml2', 'dplyr', 'jsonlite', 'rjson', 'httr', 'RJSONIO', 'stringi', 'here')"
+"0","instalados <- paquetes %in% installed.packages()"
+"0","if (length(paquetes[!instalados]) > 0) {"
+"0","  install.packages(paquetes[!instalados], repos = 'http://cran.us.r-project.org')"
+"0","}"
+"2","Installing packages into ‘C:/Users/ycoca/Documents/R/win-library/3.5’
+(as ‘lib’ is unspecified)
+"
+"2","trying URL 'http://cran.us.r-project.org/bin/windows/contrib/3.5/feather_0.3.3.zip'
+"
+"2","Content type 'application/zip'"
+"2"," length 682655 bytes (666 KB)
+"
+"2","downloaded 666 KB
+
+"
+"2","trying URL 'http://cran.us.r-project.org/bin/windows/contrib/3.5/microbenchmark_1.4-6.zip'
+"
+"2","Content type 'application/zip'"
+"2"," length 69998 bytes (68 KB)
+"
+"2","downloaded 68 KB
+
+"
+"2","trying URL 'http://cran.us.r-project.org/bin/windows/contrib/3.5/rjson_0.2.20.zip'
+"
+"2","Content type 'application/zip'"
+"2"," length 577829 bytes (564 KB)
+"
+"2","downloaded 564 KB
+
+"
+"1","package â€˜featherâ€™ successfully unpacked and MD5 sums checked
+"
+"1","package â€˜microbenchmarkâ€™ successfully unpacked and MD5 sums checked
+"
+"1","package â€˜rjsonâ€™ successfully unpacked and MD5 sums checked
+"
+"1","
+"
+"1","The downloaded binary packages are in
+	C:\Users\ycoca\AppData\Local\Temp\RtmpKqcdu0\downloaded_packages"
+"1","
+"
+"0","lapply(paquetes, require, character.only = TRUE)"
+"2","Loading required package: feather
+"
+"2","Loading required package: microbenchmark
+"
+"2","Loading required package: rjson
+"
+"2","
+Attaching package: ‘rjson’
+
+"
+"2","The following objects are masked from ‘package:jsonlite’:
+
+    fromJSON, toJSON
+
+"
+"2","Loading required package: RJSONIO
+"
+"2","there is no package called ‘RJSONIO’"
+"1","[[1]]
+"
+"1","[1]"
+"1"," TRUE"
+"1","
+"
+"1","
+"
+"1","[[2]]
+"
+"1","[1]"
+"1"," TRUE"
+"1","
+"
+"1","
+"
+"1","[[3]]
+"
+"1","[1]"
+"1"," TRUE"
+"1","
+"
+"1","
+"
+"1","[[4]]
+"
+"1","[1]"
+"1"," TRUE"
+"1","
+"
+"1","
+"
+"1","[[5]]
+"
+"1","[1]"
+"1"," TRUE"
+"1","
+"
+"1","
+"
+"1","[[6]]
+"
+"1","[1]"
+"1"," TRUE"
+"1","
+"
+"1","
+"
+"1","[[7]]
+"
+"1","[1]"
+"1"," TRUE"
+"1","
+"
+"1","
+"
+"1","[[8]]
+"
+"1","[1]"
+"1"," TRUE"
+"1","
+"
+"1","
+"
+"1","[[9]]
+"
+"1","[1]"
+"1"," TRUE"
+"1","
+"
+"1","
+"
+"1","[[10]]
+"
+"1","[1]"
+"1"," TRUE"
+"1","
+"
+"1","
+"
+"1","[[11]]
+"
+"1","[1]"
+"1"," TRUE"
+"1","
+"
+"1","
+"
+"1","[[12]]
+"
+"1","[1]"
+"1"," TRUE"
+"1","
+"
+"1","
+"
+"1","[[13]]
+"
+"1","[1]"
+"1"," FALSE"
+"1","
+"
+"1","
+"
+"1","[[14]]
+"
+"1","[1]"
+"1"," TRUE"
+"1","
+"
+"1","
+"
+"1","[[15]]
+"
+"1","[1]"
+"1"," TRUE"
+"1","
+"
+"1","
+"
+"0","# Instalar un paquete de github"
+"0","ongithub <- c('xmltools')"
+"0","extension <- c('dantonnoriega')"
+"0","pack <- cbind(ongithub, extension,  paste0(extension, '/', ongithub))"
+"0","oghinstalado <- pack[,1] %in% installed.packages()"
+"0","if (length(ongithub[!oghinstalado]) > 0) {"
+"0","  devtools::install_github(pack[!oghinstalado, 3])"
+"0","}"
+"2","Error in loadNamespace(name) : there is no package called â€˜devtoolsâ€™
+"

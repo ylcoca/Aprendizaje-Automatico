@@ -1,0 +1,7 @@
+"0","```r
+a <- 1:10
+save(a, file=\"Datasets/dumData.Rdata\")
+rm(a)
+load(\"Datasets/dumData.Rdata\")
+print(a)
+```"

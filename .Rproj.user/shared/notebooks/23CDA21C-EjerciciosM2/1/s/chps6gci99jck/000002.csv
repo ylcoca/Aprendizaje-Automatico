@@ -1,0 +1,5 @@
+"0","v4 <- sample(tiendas, 1000, replace = TRUE)
+"
+"2","Error in sample(tiendas, 1000, replace = TRUE) : 
+  object 'tiendas' not found
+"

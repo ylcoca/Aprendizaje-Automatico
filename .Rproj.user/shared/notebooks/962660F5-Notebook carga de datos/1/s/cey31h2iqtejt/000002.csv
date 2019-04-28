@@ -1,0 +1,9 @@
+"0","```r
+benchmark <- microbenchmark(readCSV = utils::read.csv(path_csv),
+               readrCSV = readr::read_csv(path_csv, progress = F),
+               fread = data.table::fread(path_csv, showProgress = F),
+               loadRdata = base::load(path_rdata),
+               readRds = base::readRDS(path_rds),
+               readFeather = feather::read_feather(path_feather), times = 10)
+print(benchmark, signif = 2)
+```"

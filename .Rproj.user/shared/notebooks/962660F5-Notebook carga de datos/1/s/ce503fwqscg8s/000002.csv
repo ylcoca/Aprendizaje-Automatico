@@ -1,0 +1,6 @@
+"0","```r
+remuneraciones <- httr::GET(\"https://catalogodatos.gub.uy/dataset/3f185c68-4c1d-4c9c-832a-dffe3f6164c4/resource/9cdd54a6-a4c5-4238-946a-43def008d38e/download/datos_compensaciones_remuneraciones_por_concepto.csv\")
+class(remuneraciones)
+resultado <- content(remuneraciones)
+head(resultado)
+```"

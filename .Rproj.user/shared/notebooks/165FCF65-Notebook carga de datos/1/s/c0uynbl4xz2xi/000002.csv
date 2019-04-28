@@ -1,0 +1,5 @@
+"0","```r
+market <- read.csv2('Datasets/direct_marketing.csv')
+head(market)
+str(market)
+```"

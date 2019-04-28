@@ -1,0 +1,244 @@
+---
+title: "Notebook carga de datos"
+params:
+  output_dir: Reportes
+output:
+  html_document:
+    df_print: paged
+---
+
+# Bienvenida R Notebook
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Librerias que vamos a usar
+```{r librerias, echo=FALSE}
+#Instalar paquetes 
+paquetes = c('foreign', 'feather', 'data.table', 'microbenchmark', 'purrr', 'tidyr', 'XML', 'xml2', 'dplyr', 'jsonlite', 'rjson', 'httr', 'RJSONIO', 'stringi', 'here')
+
+instalados <- paquetes %in% installed.packages()
+if (length(paquetes[!instalados]) > 0) {
+  install.packages(paquetes[!instalados], repos = 'http://cran.us.r-project.org')
+}
+lapply(paquetes, require, character.only = TRUE)
+
+# Instalar un paquete de github
+ongithub <- c('xmltools')
+extension <- c('dantonnoriega')
+pack <- cbind(ongithub, extension,  paste0(extension, '/', ongithub))
+oghinstalado <- pack[,1] %in% installed.packages()
+if (length(ongithub[!oghinstalado]) > 0) {
+  devtools::install_github(pack[!oghinstalado, 3])
+}
+lapply(ongithub, require, character.only = TRUE)
+
+```
+
+# Importar archivos de datos
+* .Rds y .RData son formatos de archivos binarios nativos de R. Estos formatos están optimizados para los índices de velocidad y compresión.
+* El primer método es el más utilizado. Utiliza la función save () que toma cualquier número de objetos R y los escribe en un archivo, que debe ser especificado por el argumento file =. save () 
+* El segundo método es un poco menos usado pero el más recomendable. Además de ser un poco más conciso para guardar objetos R individuales, la función readRDS () es más flexible.
+* Usar saveRDS () es una buena práctica porque te obliga a especificar nombres de objetos. Si usa save () sin cuidado, podría olvidar los nombres de los objetos que guardó y sobrescribir accidentalmente los objetos que ya existían.
+
+## RData
+```{r save RData}
+a <- 1:10
+save(a, file = "Datasets/dumData.Rdata")
+rm(a)
+load("Datasets/dumData.Rdata")
+print(a)
+```
+
+## Datos planos: csv, excel, txt, archivos spss
+Siempre es preferible trabjar con csv que con excel, es más simple la codificación en R.
+Igualmente si el origen de los datos vienen en R y distintas hojas de excel tienen datos valiosos no queda otra que trabajar con excel.
+
+Los paquetes más usados para levantar archivos planos (ejemplo csv)
+* utils::read.csv
+* readr::read_csv
+* data.table::fread
+* base::load
+* base::readRDS
+* feather::read_feather
+Algunos más eficientes que otros al levantar grandes volumenes de datos.
+
+```{r archivos planos 1, message=FALSE, warning=FALSE}
+market <- read.csv2('Datasets/direct_marketing.csv')
+head(market)
+str(market)
+```
+
+Podemos observar que los datos no parecen haber levantado bien
+```{r archivos planos 2, message=FALSE, warning=FALSE}
+getwd()
+df <- read.csv2('Datasets/direct_marketing.csv', sep = ',')
+head(df)
+str(df)
+```
+
+Ahora vamos a guardar los datos que levantamos en distintos formatos
+```{r comparación de funciones para leer datos, message=FALSE, warning=FALSE}
+# Podemos definir los path como un objeto
+path_csv <- 'Datasets/df.csv'
+path_feather <- 'Datasets/df.feather'
+path_rdata <- 'Datasets/df.RData'
+path_rds <- 'Datasets/df.rds'
+
+# Luego guardamos los objetos
+write.csv(df, file = path_csv, row.names = F)
+write_feather(df, path_feather)
+save(df, file = path_rdata)
+saveRDS(df, path_rds)
+
+# Y ahora chequemos el tamaño de los objetos
+
+files <- c('Datasets/df.csv', 'Datasets/df.feather', 'Datasets/df.RData', 'Datasets/df.rds')
+info <- file.info(files)
+info$size_mb <- info$size/(1024 * 1024)
+print(subset(info, select = c("size_mb")))
+```
+
+Por último vamos a usar la librería microbenchmark para comparar los tiempos de carga
+```{r comparar los tiempos de carga, message=FALSE, warning=FALSE}
+benchmark <- microbenchmark(readCSV = utils::read.csv(path_csv),
+               readrCSV = readr::read_csv(path_csv, progress = F),
+               fread = data.table::fread(path_csv, showProgress = F),
+               loadRdata = base::load(path_rdata),
+               readRds = base::readRDS(path_rds),
+               readFeather = feather::read_feather(path_feather), times = 10)
+print(benchmark, signif = 2)
+```
+
+* Feather fue desarrollado como una colaboración entre los desarrolladores de R y Python para crear un formato agnóstico rápido, ligero y de lenguaje para almacenar marcos de datos.
+
+
+## Datos en páginas web
+### Ejemplo 1: casos de uso de ltorgo
+Ir a la página: http://www.dcc.fc.up.pt/~ltorgo/DataMiningWithR/
+La pestaña data sets, chapter 2 y copiar el vínculo del dataset *algae*
+
+```{r caso 1 datos web, message=FALSE, warning=FALSE}
+algaeurl <- 'http://www.dcc.fc.up.pt/~ltorgo/DataMiningWithR/DataSets/algae.RData'
+class(algaeurl)
+load(url(algaeurl))
+head(algae)
+```
+
+### Ejemplo 2: xml Violencia y género en catálogo de datos abiertos
+Los datos de violencia y género de la página: https://catalogodatos.gub.uy/dataset/seguridad_y_violencia_en_genero_ministerio_interior
+Ir a la página y copiar la url de los datos en formato xml
+```{r caso 2 datos web xml}
+# libreria
+library(xml2)
+# url copiada
+url2 = "https://catalogodatos.gub.uy/dataset/da0b8ae3-f228-4601-a04e-96c10a2f2819/resource/7ee77643-ed59-4049-92df-cebe5a35dd59/download/violencia-domestica-y-asociados-por-departamento-y-ao.xml" 
+
+# lectura del xml
+choco_xml <- read_xml(url2)
+print(choco_xml)
+
+choco_xml %>% 
+  xml_view_tree()
+terminal_xpaths2 <- choco_xml %>% ## get all xpaths
+  xml_get_paths()
+terminal_xpaths2 <- terminal_xpaths2 %>% ## collapse xpaths to unique only
+  unlist() %>%
+  unique()
+
+terminal_nodesets <- lapply(terminal_xpaths2, xml2::xml_find_all, x = choco_xml)
+df2 <- terminal_nodesets %>%
+  purrr::map(xml_dig_df) %>% ## does not dig by default
+  purrr::map(dplyr::bind_rows) 
+df2 <- as.data.frame((df2[1]))
+head(df2)
+```
+
+### Ejemplo 3: csv datos abiertos remuneraciones INE Uruguay
+```{r caso 3 datos web csv}
+remuneraciones <- httr::GET("https://catalogodatos.gub.uy/dataset/3f185c68-4c1d-4c9c-832a-dffe3f6164c4/resource/9cdd54a6-a4c5-4238-946a-43def008d38e/download/datos_compensaciones_remuneraciones_por_concepto.csv")
+class(remuneraciones)
+resultado <- content(remuneraciones)
+head(resultado)
+```
+
+### Ejemplo 3: datos abiertos gobierno EEUU nombres de perros
+```{r caso 4 datos web json}
+json_file <- "https://data.muni.org/api/views/da3g-dkms/rows.json?accessType=DOWNLOAD"
+rawp <- jsonlite::fromJSON(json_file)
+perros <- rawp[['data']]
+colnames(perros) <- rawp$meta$view$columns$name
+class(perros)
+head(perros)
+```
+
+
+```{r archivos spss, cache=TRUE, warning=FALSE, message=FALSE}
+# paquete para levantar datos en formato .sav de spss
+# if (!require('foreign'))
+# {
+#   install.packages('foreign', repos = 'http://cran.us.r-project.org');
+#   library(foreign);
+# }
+```
+
+## api
+
+## datos espaciales: shapes
+Datos georeferenciados: ejemplo datos de monumentos y datos de tambos por departamento
+```{r lectura de shapes espaciales}
+## 1) 
+#### Directorio de trabajo ejemplo 1
+
+#### Libreria basica
+library(rgdal)
+
+####Spatial Polygon Data Frame
+sp_df <- readOGR(dsn = "Datasets/monumentos_bienes", layer = "mh_bim")
+#print(sp_df)
+
+#### Despliegue grafico del vectorial
+plot(sp_df, col='blue', bg='yellow')
+box()
+for(i in 1:4) axis(i)
+
+####ESTRUCTURA DE DATOS ESPACIALES EN r
+#@data
+#@polygons
+head(sp_df@data)
+sapply(sp_df@data, class)
+str(sp_df@data)
+df <- as.data.frame(sp_df@data)
+#### Ejemplo From raw data to tecnically correct data
+sp_df$PADRON <- as.numeric(as.character(sp_df$PADRON)) # es correcto?
+
+####Exploracion de datos
+plot(sp_df)
+sel <- sp_df$PROTECCION == "BIEN DE INTERES IMM"
+plot(sp_df[sel,])
+
+plot(sp_df, col = "lightgrey") # 
+sel <- sp_df$PROTECCION == "BIEN DE INTERES IMM"
+plot(sp_df[ sel, ], col = "turquoise", add = TRUE) # add selected zones to map
+
+library(maptools)  # to plot and label
+plot(sp_df)
+pointLabel(coordinates(sp_df), labels = sp_df$IDENTIFICA, col= 2, cex = 0.5)
+```
+
+

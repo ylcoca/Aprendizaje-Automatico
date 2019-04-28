@@ -1,0 +1,6 @@
+"0","```r
+algaeurl <- 'http://www.dcc.fc.up.pt/~ltorgo/DataMiningWithR/DataSets/algae.RData'
+class(algaeurl)
+load(url(algaeurl))
+head(algae)
+```"

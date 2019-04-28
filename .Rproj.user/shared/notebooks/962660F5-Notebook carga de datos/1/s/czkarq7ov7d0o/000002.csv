@@ -1,0 +1,6 @@
+"0","```r
+getwd()
+df <- read.csv2('Datasets/direct_marketing.csv', sep = ',')
+head(df)
+str(df)
+```"

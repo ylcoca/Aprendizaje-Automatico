@@ -1,0 +1,11 @@
+"0","# Podemos definir los path como un objeto"
+"0","path_csv <- 'Datasets/df.csv'"
+"0","path_feather <- 'Datasets/df.feather'"
+"0","path_rdata <- 'Datasets/df.RData'"
+"0","path_rds <- 'Datasets/df.rds'"
+"0","# Luego guardamos los objetos"
+"0","write.csv(redWineDf, file = path_csv, row.names = F)"
+"0","write_feather(redWineDf, path_feather)"
+"2","Error in write_feather(redWineDf, path_feather) : 
+  could not find function ""write_feather""
+"

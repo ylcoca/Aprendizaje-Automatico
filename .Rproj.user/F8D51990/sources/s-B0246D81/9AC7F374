@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1556216050000.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "2075785407",
+    "id" : "9AC7F374",
+    "lastKnownWriteTime" : 1556197117,
+    "last_content_update" : 1556389953224,
+    "path" : "C:/Workspace/R/Clases prácticas módulo 2-20190409/Transformacion/R/Manejo de Datos con R.Rmd",
+    "project_path" : null,
+    "properties" : {
+        "cursorPosition" : "537,2",
+        "last_setup_crc32" : "B0246D819ff7e774",
+        "scrollLine" : "526"
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}
